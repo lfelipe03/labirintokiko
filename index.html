@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Labirinto do Kiko</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      overflow: auto;
+      height: 100%;
+      font-family: 'Arial', sans-serif;
+    }
+    canvas {
+      display: block;
+      margin: 5vh auto;
+      background: #111;
+      border: 4px solid #ff69b4;
+      box-shadow: 0 0 30px rgba(255, 105, 180, 0.4);
+      border-radius: 10px;
+      transition: all 0.3s ease;
+    }
+    canvas:hover {
+      box-shadow: 0 0 40px rgba(255, 105, 180, 0.6);
+    }
+    #win-screen {
+      display: none;
+      position: relative;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      text-align: center;
+      padding-top: 5vh;
+      font-size: 1.5em;
+      opacity: 0;
+      transition: opacity 2s ease-in-out;
+      z-index: 100;
+    }
+    #win-screen.show {
+      opacity: 1;
+    }
+    #win-screen h1 {
+      font-size: 3em;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px rgba(255, 105, 180, 0.7);
+      color: #ff69b4;
+      animation: pulse 2s infinite;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 20px;
+      border-radius: 15px;
+      
+    }
+    #win-screen p {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      line-height: 1.6;
+      font-size: 1.2em;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    #win-screen img {
+      max-width: 80vw;
+      max-height: 50vh;
+      margin-top: 20px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 3px solid #ff69b4;
+      transform: scale(0.9);
+      transition: transform 0.5s ease, box-shadow 0.5s ease;
+    }
+    #win-screen img:hover {
+      transform: scale(0.95);
+      box-shadow: 0 15px 40px rgba(255, 105, 180, 0.6);
+    }
+    .hearts {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .heart {
+      position: absolute;
+      opacity: 0;
+      animation: float 6s ease-in infinite;
+      filter: drop-shadow(0 0 5px rgba(255, 105, 180, 0.7));
+    }
+    @keyframes float {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-500px) rotate(360deg);
+        opacity: 0;
+      }
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      opacity: 0;
+    }
+    #controls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: white;
+      font-size: 0.9em;
+      opacity: 0.7;
+    }
+    .wall {
+      background: linear-gradient(45deg, #333, #555);
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+      border-radius: 3px;
+    }
+    .path {
+      background: #111;
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.7);
+    }
+    #player-label, #goal-label {
+      position: absolute;
+      color: white;
+      font-weight: bold;
+      text-shadow: 0 0 5px black;
+      font-size: 12px;
+      z-index: 10;
+    }
+    #player-label {
+      background: rgba(76, 175, 80, 0.7);
+      padding: 2px 5px;
+      border-radius: 10px;
+    }
+    #goal-label {
+      background: rgba(255, 87, 34, 0.7);
+      padding: 2px 5px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="mazeCanvas"></canvas>
+  <div id="win-screen">
+    <div class="hearts" id="hearts-container"></div>
+    <h1>Feliz aniversário, meu amor! 💖</h1>
+
+    <img src="./lfewidy.jpg" alt="Nós dois">
+
+    <p>Depois de todo esse labirinto, eu tive a sorte de encontrar você.<br>
+    Eu sou tão grato por ter você comigo. AMO VOSE DEMAIS 💖 .<br><br>
+    Que nosso caminho juntos seja sempre iluminado! ✨</p>
+    
+  </div>
+  
+
+  <script>
+    const canvas = document.getElementById("mazeCanvas");
+    const ctx = canvas.getContext("2d");
+  
+    const maze = [
+      "################",
+      "#     #        #",
+      "# ### # ###### #",
+      "# #   #      # #",
+      "# # ###### # # #",
+      "# #      # #   #",
+      "# ###### # ### #",
+      "#      # #   # #",
+      "###### # ### # #",
+      "#    # #   # # #",
+      "# ## # # # # # #",
+      "# ## # # # # # #",
+      "#    #   #   # #",
+      "#### ######### #",
+      "#               ",
+      "################"
+    ];
+  
+    // Ajusta o tileSize para caber na tela toda com margem
+    const maxWidth = window.innerWidth * 0.95;
+    const maxHeight = window.innerHeight * 0.85;
+    const cols = maze[0].length;
+    const rows = maze.length;
+    const tileSize = Math.floor(Math.min(maxWidth / cols, maxHeight / rows));
+  
+    canvas.width = cols * tileSize;
+    canvas.height = rows * tileSize;
+  
+    const playerImg = new Image();
+    playerImg.src = "./lf.jpg";  // SUA FOTO (EU)
+    playerImg.onerror = () => {
+      document.getElementById('player-label').textContent = "EU (foto não carregou)";
+    };
+  
+    const goalImg = new Image();
+    goalImg.src = "./widy.jpg";  // FOTO DELA (VOCÊ)
+    goalImg.onerror = () => {
+      document.getElementById('goal-label').textContent = "VOCÊ (foto não carregou)";
+    };
+  
+    let playerX = 1;
+    let playerY = 1;
+    const goalX = 14;
+    const goalY = 14;
+
+    // Adiciona labels
+    const playerLabel = document.createElement('div');
+    playerLabel.id = 'player-label';
+    playerLabel.textContent = 'EU';
+    document.body.appendChild(playerLabel);
+    
+    const goalLabel = document.createElement('div');
+    goalLabel.id = 'goal-label';
+    goalLabel.textContent = 'VOCÊ';
+    document.body.appendChild(goalLabel);
+
+    function updateLabels() {
+      const canvasRect = canvas.getBoundingClientRect();
+      
+      playerLabel.style.left = (canvasRect.left + playerX * tileSize + 5) + 'px';
+      playerLabel.style.top = (canvasRect.top + playerY * tileSize - 20) + 'px';
+      
+      goalLabel.style.left = (canvasRect.left + goalX * tileSize + 5) + 'px';
+      goalLabel.style.top = (canvasRect.top + goalY * tileSize - 20) + 'px';
+    }
+  
+    function drawMaze() {
+      // Desenha o labirinto
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (maze[y][x] === "#") {
+            ctx.fillStyle = "#333";
+            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            
+            // Efeito 3D nas paredes
+            ctx.strokeStyle = "#555";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            
+            // Detalhes nas paredes
+            ctx.fillStyle = "#444";
+            for (let i = 0; i < 3; i++) {
+              const offset = Math.random() * 3;
+              ctx.fillRect(
+                x * tileSize + offset + 2, 
+                y * tileSize + offset + 2, 
+                1, 
+                1
+              );
+            }
+          } else {
+            // Efeito no chão
+            const gradient = ctx.createLinearGradient(
+              x * tileSize, y * tileSize, 
+              x * tileSize + tileSize, y * tileSize + tileSize
+            );
+            gradient.addColorStop(0, "#111");
+            gradient.addColorStop(1, "#0a0a0a");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            
+            // Padrão sutil no chão
+            ctx.fillStyle = "rgba(255, 105, 180, 0.03)";
+            if ((x + y) % 2 === 0) {
+              ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+          }
+        }
+      }
+  
+      // Desenha o objetivo (VOCÊ - widy.jpg) com sombra
+      ctx.shadowColor = 'rgba(255, 105, 180, 0.7)';
+      ctx.shadowBlur = 15;
+      ctx.drawImage(goalImg, goalX * tileSize, goalY * tileSize, tileSize, tileSize);
+      ctx.shadowBlur = 0;
+      
+      // Desenha o jogador (EU - lf.jpg) com sombra
+      ctx.shadowColor = 'rgba(0, 162, 255, 0.7)';
+      ctx.shadowBlur = 15;
+      ctx.drawImage(playerImg, playerX * tileSize, playerY * tileSize, tileSize, tileSize);
+      ctx.shadowBlur = 0;
+
+      // Atualiza as labels
+      updateLabels();
+    }
+  
+    function canMove(x, y) {
+      return maze[y][x] !== "#";
+    }
+  
+    function createHearts() {
+      const container = document.getElementById('hearts-container');
+      const colors = ['#ff69b4', '#ff1493', '#ff00ff', '#ff8da1', '#ffb6c1'];
+      
+      for (let i = 0; i < 50; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'heart';
+        heart.innerHTML = '❤';
+        heart.style.left = Math.random() * 100 + 'vw';
+        heart.style.fontSize = (Math.random() * 20 + 10) + 'px';
+        heart.style.color = colors[Math.floor(Math.random() * colors.length)];
+        heart.style.animationDelay = Math.random() * 5 + 's';
+        container.appendChild(heart);
+      }
+    }
+  
+    function createConfetti() {
+      const colors = ['#ff69b4', '#ff1493', '#ff00ff', '#ff8da1', '#ffb6c1', '#ffffff'];
+      
+      // Adiciona estilos dinâmicos para diferentes formas de confetti
+      const style = document.createElement('style');
+      style.innerHTML = `
+        @keyframes confetti-fall {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(360deg);
+            opacity: 0;
+          }
+        }
+        .confetti {
+          animation: confetti-fall ${Math.random() * 3 + 2}s linear ${Math.random() * 2}s forwards;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      for (let i = 0; i < 150; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.top = '-10px';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.width = (Math.random() * 10 + 5) + 'px';
+        confetti.style.height = (Math.random() * 10 + 5) + 'px';
+        confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+        confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+        
+        document.getElementById('win-screen').appendChild(confetti);
+      }
+    }
+  
+    document.addEventListener("keydown", (e) => {
+      let nx = playerX, ny = playerY;
+      if (e.key === "ArrowUp") ny--;
+      else if (e.key === "ArrowDown") ny++;
+      else if (e.key === "ArrowLeft") nx--;
+      else if (e.key === "ArrowRight") nx++;
+  
+      if (canMove(nx, ny)) {
+        playerX = nx;
+        playerY = ny;
+        drawMaze();
+      }
+  
+      if (playerX === goalX && playerY === goalY) {
+        document.getElementById("mazeCanvas").style.display = "none";
+        document.getElementById("player-label").style.display = "none";
+        document.getElementById("goal-label").style.display = "none";
+        const winScreen = document.getElementById("win-screen");
+        winScreen.style.display = "block";
+        setTimeout(() => {
+          winScreen.classList.add('show');
+          createHearts();
+          createConfetti();
+        }, 100);
+      }
+    });
+  
+    // Efeito de brilho nas bordas do canvas
+    setInterval(() => {
+      const colors = ['rgba(255, 105, 180, 0.7)', 'rgba(100, 200, 255, 0.7)', 'rgba(255, 255, 255, 0.7)'];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      canvas.style.boxShadow = `0 0 30px ${randomColor}`;
+    }, 3000);
+
+    // Redimensionamento responsivo
+    window.addEventListener('resize', function() {
+      const newTileSize = Math.floor(Math.min(
+        window.innerWidth * 0.95 / cols, 
+        window.innerHeight * 0.85 / rows
+      ));
+      
+      if (newTileSize !== tileSize) {
+        canvas.width = cols * newTileSize;
+        canvas.height = rows * newTileSize;
+        drawMaze();
+      }
+    });
+
+    playerImg.onload = () => drawMaze();
+    goalImg.onload = () => drawMaze();
+  </script>
+</body>
+</html>
